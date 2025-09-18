@@ -109,19 +109,18 @@ import os
 import google.generativeai as genai
 from dotenv import load_dotenv
 import logging
-import json
 
 # Suppress ALTS warnings
 logging.getLogger('google.auth').setLevel(logging.ERROR)
 logging.getLogger('google.api_core').setLevel(logging.ERROR)
 
-# Load environment variables
+# Load environment variables (local .env or Streamlit Cloud secrets)
 load_dotenv()
 
 # Set up Gemini client
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    st.error("Error: Add your Gemini API key to .env file!")
+    st.error("Error: Add your Gemini API key to .env file or Streamlit Cloud secrets!")
     st.stop()
 genai.configure(api_key=api_key)
 
@@ -158,19 +157,12 @@ with st.sidebar:
         st.markdown('<style> .stApp { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); } </style>', unsafe_allow_html=True)
     if st.button("Clear Chat", type="secondary"):
         st.session_state.messages = []
-        if os.path.exists("chat_history.json"):
-            os.remove("chat_history.json")
     st.markdown("---")
     st.caption("Powered by Google Gemini")
 
-# Initialize chat history
+# Initialize chat history in session state
 if "messages" not in st.session_state:
-    # Load from file if exists
-    if os.path.exists("chat_history.json"):
-        with open("chat_history.json", "r") as f:
-            st.session_state.messages = json.load(f)
-    else:
-        st.session_state.messages = []
+    st.session_state.messages = []
 
 # Display chat history
 for message in st.session_state.messages:
@@ -187,6 +179,8 @@ if prompt := st.chat_input("Type your message here..."):
     # Generate AI response
     with st.chat_message("assistant", avatar="🤖"):
         try:
+            # Use selected model
+            model = genai.GenerativeModel(model_choice)
             # Recreate chat with history
             chat_history = [{"role": msg["role"], "parts": [{"text": msg["content"]}]} for msg in st.session_state.messages[:-1]]
             chat = model.start_chat(history=chat_history)
@@ -196,10 +190,6 @@ if prompt := st.chat_input("Type your message here..."):
             
             # Add AI response to history
             st.session_state.messages.append({"role": "assistant", "content": ai_reply})
-            
-            # Save history to file
-            with open("chat_history.json", "w") as f:
-                json.dump(st.session_state.messages, f)
         except Exception as e:
             st.error(f"Oops! Error: {e}")
 
