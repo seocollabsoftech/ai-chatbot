@@ -194,7 +194,7 @@ st.set_page_config(
 # Custom CSS for a beautiful look
 st.markdown("""
     <style>
-    .stApp { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .stApp { background: linear-gradient(135deg, #a8e063 0%, #56ab2f 100%); }
     .stTextInput>div>div>input {
         background-color: #fff;
         border-radius: 10px;
@@ -305,7 +305,7 @@ with st.sidebar:
     if theme == "Dark":
         st.markdown('<style> .stApp { background-color: #0e1117; color: white; } </style>', unsafe_allow_html=True)
     else:
-        st.markdown('<style> .stApp { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); } </style>', unsafe_allow_html=True)
+        st.markdown('<style> .stApp { background: linear-gradient(135deg, #f7b42c 0%, #fc575e 100%); } </style>', unsafe_allow_html=True)
     if st.button("Clear Chat", type="secondary"):
         st.session_state.messages = []
     st.markdown("---")
