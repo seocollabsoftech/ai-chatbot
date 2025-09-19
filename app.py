@@ -194,7 +194,7 @@ st.set_page_config(
 # Custom CSS for a beautiful look
 st.markdown("""
     <style>
-    .stApp { background: linear-gradient(135deg, #eac4d5 0%, #d8bfd8 100%); }
+    .stApp { background: linear-gradient(135deg, #81c784 0%, #66bb6a 100%); }
     .stTextInput>div>div>input {
         background-color: #fff;
         border-radius: 10px;
