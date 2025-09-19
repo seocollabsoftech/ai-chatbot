@@ -309,7 +309,7 @@ with st.sidebar:
     if st.button("Clear Chat", type="secondary"):
         st.session_state.messages = []
     st.markdown("---")
-    st.caption("Powered by Google Gemini")
+    st.caption("Powered by Collab Softech")
 
 # Initialize chat history in session state
 if "messages" not in st.session_state:
