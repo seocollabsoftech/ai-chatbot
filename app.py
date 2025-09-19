@@ -297,8 +297,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Theme toggle in sidebar
-with st.expander:
-    st.title("🤖 Chat Settings")
+with st.expander("🤖 Chat Settings"):
     st.markdown("---")
     model_choice = st.selectbox("Model", ["gemini-1.5-flash", "gemini-1.5-pro"])
     theme = st.selectbox("Theme", ["Light", "Dark"])
