@@ -105,6 +105,13 @@
 # # Footer for polish
 # st.markdown('<div class="main-footer">© 2025 Your AI Chatbot App</div>', ugenai
 
+
+import streamlit as st
+import google.generativeai as genai
+import os
+from dotenv import load_dotenv
+import logging
+
 # Suppress ALTS warnings
 logging.getLogger('google.auth').setLevel(logging.ERROR)
 logging.getLogger('google.api_core').setLevel(logging.ERROR)
