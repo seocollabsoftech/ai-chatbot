@@ -118,22 +118,16 @@ from bs4 import BeautifulSoup
 from docx import Document
 from docx.shared import Inches
 from io import BytesIO
-import google.generativeai as genai
-import os
-from dotenv import load_dotenv
-import logging
 
-# ======================================================================
-# --- Function Definitions ---
-# ======================================================================
-
+# --- SEO Audit Logic ---
 def perform_seo_audit(url):
     """Fetches and analyzes a website's content for basic SEO elements."""
     try:
         response = requests.get(url, timeout=10)
-        response.raise_for_status()
+        response.raise_for_status()  # Check for bad HTTP status
         soup = BeautifulSoup(response.text, 'html.parser')
 
+        # Collect SEO data
         title = soup.find('title')
         meta_description = soup.find('meta', attrs={'name': 'description'})
         h1_tags = [h1.get_text().strip() for h1 in soup.find_all('h1')]
@@ -190,9 +184,82 @@ def create_word_report(report_data):
     
     return doc
 
-# ======================================================================
-# --- Streamlit Application ---
-# ======================================================================
+# --- Streamlit UI ---
+st.set_page_config(
+    page_title="AI Chatbot & SEO Auditor",
+    page_icon="🤖",
+    layout="wide"
+)
+
+# Custom CSS for a beautiful look
+st.markdown("""
+    <style>
+    .stApp { background: linear-gradient(135deg, #EEAECA 0%, #94BBE9 100%); }
+    .stTextInput>div>div>input {
+        background-color: #fff;
+        border-radius: 10px;
+        border: 1px solid #ccc;
+        padding: 10px;
+    }
+    .stButton>button {
+        background-color: #007bff;
+        color: white;
+        border-radius: 10px;
+        border: none;
+        padding: 10px 20px;
+    }
+    .stExpander {
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("AI Chatbot with SEO Audit")
+st.markdown("Enter a website URL below to get an on-page SEO audit report in a Word document.")
+
+# Input for URL
+url_input = st.text_input("Website URL", placeholder="e.g., https://streamlit.io")
+
+# Button to trigger the audit
+if st.button("Generate SEO Report"):
+    if url_input:
+        with st.spinner("Analyzing website... This may take a moment."):
+            seo_data = perform_seo_audit(url_input)
+        
+        if "Error" in seo_data:
+            st.error(seo_data["Error"])
+        else:
+            st.success("Audit complete! Report generated.")
+            
+            # Use an expander to show a summary of the findings
+            with st.expander("Show Audit Summary"):
+                st.write("Here is a quick overview of the findings:")
+                for key, value in seo_data.items():
+                    if isinstance(value, list) and value:
+                        st.markdown(f"**{key}**:")
+                        for item in value:
+                            st.markdown(f"- {item}")
+                    else:
+                        st.markdown(f"**{key}**: {value}")
+
+            # Generate and download the Word document
+            word_doc = create_word_report(seo_data)
+            
+            # Save the document to a byte stream to make it downloadable
+            doc_stream = BytesIO()
+            word_doc.save(doc_stream)
+            doc_stream.seek(0)
+            
+            # Create a download button
+            st.download_button(
+                label="Download SEO Report (Word)",
+                data=doc_stream,
+                file_name=f"seo_report_{url_input.split('//')[-1].split('/')[0]}.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+    else:
+        st.warning("Please enter a URL to start the audit.")
 
 # Suppress ALTS warnings
 logging.getLogger('google.auth').setLevel(logging.ERROR)
@@ -211,117 +278,40 @@ genai.configure(api_key=api_key)
 # Initialize the model
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Set Streamlit page configuration and styling
+# Streamlit page config for beautiful layout
 st.set_page_config(
-    page_title="AI Chatbot & SEO Auditor",
+    page_title="Gemini AI Chatbot",
     page_icon="🤖",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS for a beautiful look
+# Custom CSS for beautiful design
 st.markdown("""
     <style>
-    .stApp { background: linear-gradient(135deg, #f7b42c 0%, #fc575e 100%); }
-    .stTextInput>div>div>input {
-        background-color: #fff;
-        border-radius: 10px;
-        border: 1px solid #ccc;
-        padding: 10px;
-    }
-    .stButton>button {
-        background-color: #007bff;
-        color: white;
-        border-radius: 10px;
-        border: none;
-        padding: 10px 20px;
-    }
     .stChatMessage { background-color: #f0f2f6; border-radius: 10px; padding: 10px; margin: 5px 0; }
     .user { background-color: #007bff; color: white; }
     .ai { background-color: #e9ecef; color: black; }
-    .main-footer { 
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        text-align: center; 
-        padding: 20px; 
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); 
-        color: white; 
-    }
+    .main-footer { text-align: center; padding: 20px; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); color: white; }
     </style>
 """, unsafe_allow_html=True)
 
-# Main Title and Description
-st.title("AI Chatbot with SEO Audit")
-st.markdown("Enter a website URL to get an on-page SEO audit report in a Word document.")
-
-# --- Chat Settings Toggle Button ---
-if 'show_settings' not in st.session_state:
-    st.session_state.show_settings = False
-
-if st.button("⚙️ Chat Settings"):
-    st.session_state.show_settings = not st.session_state.show_settings
-
-# --- Settings Content (conditionally displayed) ---
-if st.session_state.show_settings:
+# Theme toggle in sidebar
+with st.sidebar:
+    st.title("🤖 Chat Settings")
     st.markdown("---")
     model_choice = st.selectbox("Model", ["gemini-1.5-flash", "gemini-1.5-pro"])
     theme = st.selectbox("Theme", ["Light", "Dark"])
     if theme == "Dark":
         st.markdown('<style> .stApp { background-color: #0e1117; color: white; } </style>', unsafe_allow_html=True)
     else:
-        st.markdown('<style> .stApp { background: linear-gradient(135deg, #f7b42c 0%, #fc575e 100%); } </style>', unsafe_allow_html=True)
+        st.markdown('<style> .stApp { background: linear-gradient(135deg, #a8e063 0%, #56ab2f 100%); } </style>', unsafe_allow_html=True)
     if st.button("Clear Chat", type="secondary"):
         st.session_state.messages = []
     st.markdown("---")
     st.caption("Powered by Google Gemini")
 
-# --- SEO Audit Section ---
-st.header("SEO Audit Report")
-
-# Input for URL
-url_input = st.text_input("Website URL", placeholder="e.g., https://streamlit.io")
-
-# Button to trigger the audit
-if st.button("Generate SEO Report"):
-    if url_input:
-        with st.spinner("Analyzing website... This may take a moment."):
-            seo_data = perform_seo_audit(url_input)
-        
-        if "Error" in seo_data:
-            st.error(seo_data["Error"])
-        else:
-            st.success("Audit complete! Report generated.")
-            
-            with st.expander("Show Audit Summary"):
-                st.write("Here is a quick overview of the findings:")
-                for key, value in seo_data.items():
-                    if isinstance(value, list) and value:
-                        st.markdown(f"**{key}**:")
-                        for item in value:
-                            st.markdown(f"- {item}")
-                    else:
-                        st.markdown(f"**{key}**: {value}")
-
-            word_doc = create_word_report(seo_data)
-            
-            doc_stream = BytesIO()
-            word_doc.save(doc_stream)
-            doc_stream.seek(0)
-            
-            st.download_button(
-                label="Download SEO Report (Word)",
-                data=doc_stream,
-                file_name=f"seo_report_{url_input.split('//')[-1].split('/')[0]}.docx",
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            )
-    else:
-        st.warning("Please enter a URL to start the audit.")
-
-# --- Chatbot Section ---
-st.markdown("---")
-st.header("Chat with the AI Assistant")
-
+# Initialize chat history in session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -330,7 +320,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"], avatar="👤" if message["role"] == "user" else "🤖"):
         st.markdown(message["content"])
 
-# --- Chat input (moved down) ---
+# Chat input
 if prompt := st.chat_input("Type your message here..."):
     # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -340,6 +330,9 @@ if prompt := st.chat_input("Type your message here..."):
     # Generate AI response
     with st.chat_message("assistant", avatar="🤖"):
         try:
+            # Use selected model
+            model = genai.GenerativeModel(model_choice)
+            # Recreate chat with history
             chat_history = [{"role": msg["role"], "parts": [{"text": msg["content"]}]} for msg in st.session_state.messages[:-1]]
             chat = model.start_chat(history=chat_history)
             response = chat.send_message(prompt, stream=False)
@@ -351,5 +344,5 @@ if prompt := st.chat_input("Type your message here..."):
         except Exception as e:
             st.error(f"Oops! Error: {e}")
 
-# --- Footer (moved to the very end) ---
-st.markdown('<div class="main-footer">© 2025 Collab AI Chatbot App</div>', unsafe_allow_html=True)
+# Footer
+st.markdown('<div class="main-footer">© 2025 Collab Softech AI Chatbot App</div>', unsafe_allow_html=True)
