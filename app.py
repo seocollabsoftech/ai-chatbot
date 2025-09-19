@@ -297,7 +297,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Theme toggle in sidebar
-with st.sidebar:
+with st.expander:
     st.title("🤖 Chat Settings")
     st.markdown("---")
     model_choice = st.selectbox("Model", ["gemini-1.5-flash", "gemini-1.5-pro"])
@@ -345,4 +345,4 @@ if prompt := st.chat_input("Type your message here..."):
             st.error(f"Oops! Error: {e}")
 
 # Footer
-st.markdown('<div class="main-footer">© 2025 Collab Sotech AI Chatbot App</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-footer">© 2025 Collab Softech AI Chatbot App</div>', unsafe_allow_html=True)
