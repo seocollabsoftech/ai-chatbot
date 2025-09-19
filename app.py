@@ -103,12 +103,7 @@
 #             st.error(f"Oops! Error: {e}")
 
 # # Footer for polish
-# st.markdown('<div class="main-footer">© 2025 Your AI Chatbot App</div>', unsafe_allow_html=True)
-import streamlit as st
-import os
-import google.generativeai as genai
-from dotenv import load_dotenv
-import logging
+# st.markdown('<div class="main-footer">© 2025 Your AI Chatbot App</div>', ugenai
 
 # Suppress ALTS warnings
 logging.getLogger('google.auth').setLevel(logging.ERROR)
