@@ -112,7 +112,7 @@ import os
 from dotenv import load_dotenv
 import logging
 
-iimport streamlit as st
+import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 from docx import Document
