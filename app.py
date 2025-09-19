@@ -345,4 +345,4 @@ if prompt := st.chat_input("Type your message here..."):
             st.error(f"Oops! Error: {e}")
 
 # Footer
-st.markdown('<div class="main-footer">© 2025 Your AI Chatbot App</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-footer">© 2025 Collab Sotech AI Chatbot App</div>', unsafe_allow_html=True)
