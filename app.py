@@ -305,7 +305,7 @@ with st.sidebar:
     if theme == "Dark":
         st.markdown('<style> .stApp { background-color: #0e1117; color: white; } </style>', unsafe_allow_html=True)
     else:
-        st.markdown('<style> .stApp { background: linear-gradient(135deg, #f7b42c 0%, #fc575e 100%); } </style>', unsafe_allow_html=True)
+        st.markdown('<style> .stApp { background: linear-gradient(135deg, #a8e063 0%, #56ab2f 100%); } </style>', unsafe_allow_html=True)
     if st.button("Clear Chat", type="secondary"):
         st.session_state.messages = []
     st.markdown("---")
