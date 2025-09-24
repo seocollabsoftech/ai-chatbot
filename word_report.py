@@ -2,17 +2,13 @@
 word_report.py
 Lightweight SEO audit script that fetches basic on-page SEO data and exports it as a Word document.
 ✅ Compatible with Streamlit Cloud (no Selenium/browser required)
-
-Usage:
-    python word_report.py https://example.com
 """
 
-import sys
 import requests
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from docx import Document
-from docx.shared import Pt, Inches
+from docx.shared import Pt
 from pathlib import Path
 
 # ------------------- Core Audit Logic -------------------
@@ -32,7 +28,7 @@ def perform_seo_audit(target_url: str) -> dict:
         soup = BeautifulSoup(resp.text, "html.parser")
         result["status_code"] = resp.status_code
     except Exception as e:
-        return {"error": f"Failed to fetch site: {e}"}
+        return {"Error": f"Failed to fetch site: {e}"}
 
     # Title Tag
     title_tag = soup.find("title")
@@ -82,8 +78,11 @@ def perform_seo_audit(target_url: str) -> dict:
 
 # ------------------- Word Report Generator -------------------
 
-def create_word_report(audit_data: dict, output_file: str = "seo_audit_report.docx") -> str:
-    """Create a Word SEO report from the collected data."""
+def create_word_report(audit_data: dict, output_file):
+    """
+    Create a Word SEO report from the collected data.
+    output_file can be a file path (str/Path) or a BytesIO object
+    """
     doc = Document()
     doc.add_heading("SEO Audit Report", 0)
 
@@ -132,27 +131,9 @@ def create_word_report(audit_data: dict, output_file: str = "seo_audit_report.do
     doc.add_paragraph(f"Robots.txt: {audit_data.get('robots_status')}")
     doc.add_paragraph(f"Sitemap.xml: {audit_data.get('sitemap_status')}")
 
-    doc.save(output_file)
-    return output_file
-
-# ------------------- CLI Entry Point -------------------
-
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python word_report.py <target-url>")
-        sys.exit(1)
-
-    target_url = sys.argv[1]
-    print(f"🔍 Running SEO audit for: {target_url}")
-    data = perform_seo_audit(target_url)
-
-    if "error" in data:
-        print("❌ Error:", data["error"])
-        sys.exit(1)
-
-    output_path = Path.cwd() / f"{urlparse(target_url).netloc}_seo_audit.docx"
-    create_word_report(data, str(output_path))
-    print(f"✅ SEO Audit Report generated: {output_path}")
-
-if __name__ == "__main__":
-    main()
+    # Save document
+    if hasattr(output_file, "write"):  # BytesIO
+        doc.save(output_file)
+    else:  # path
+        doc.save(str(output_file))
+    return doc
