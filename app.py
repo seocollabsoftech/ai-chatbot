@@ -148,3 +148,18 @@ if prompt := st.chat_input("Type your message here..."):
 
 # Footer
 st.markdown('<div class="main-footer">© 2025 Collab Softech AI Chatbot App</div>', unsafe_allow_html=True)
+
+from word_report import perform_seo_audit, create_word_report
+from io import BytesIO
+import google.generativeai as genai
+
+# Initialize Gemini AI
+ai_client = genai.GenerativeModel("gemini-1.5-flash")
+
+# Perform SEO audit
+seo_data = perform_seo_audit("https://example.com")
+
+# Create Word report with AI suggestions
+doc_stream = BytesIO()
+create_word_report(seo_data, doc_stream, ai_client=ai_client)
+doc_stream.seek(0)
