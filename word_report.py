@@ -33,39 +33,62 @@ def perform_seo_audit(url):
         return {"Error": f"Could not access the website: {e}"}
 
 def create_word_report(report_data):
-    """Generates a Word document from the SEO audit data."""
+    """Generates a Word document from the SEO audit data, matching the provided structure."""
     doc = Document()
-    doc.add_heading(f"SEO Audit Report for: {report_data.get('URL', 'N/A')}", level=1)
+    doc.add_heading(f"Website Audit Report for: {report_data.get('URL', 'N/A')}", level=0)
     
     if "Error" in report_data:
         doc.add_paragraph(f"Audit failed: {report_data['Error']}")
         return doc
     
-    doc.add_paragraph("This report provides a basic analysis of the website's on-page SEO factors.")
-    doc.add_heading("On-Page Analysis", level=2)
-    
-    # Page Title
-    doc.add_heading("Title Tag", level=3)
-    doc.add_paragraph(f"Title: {report_data['Title']}")
-    doc.add_paragraph(f"Length: {len(report_data['Title'])} characters" if isinstance(report_data['Title'], str) else "Length: 0 characters")
-    
-    # Meta Description
-    doc.add_heading("Meta Description", level=3)
-    doc.add_paragraph(f"Description: {report_data['Meta Description']}")
-    doc.add_paragraph(f"Length: {len(report_data['Meta Description'])} characters" if isinstance(report_data['Meta Description'], str) else "Length: 0 characters")
+    # --- 1. SEO Section ---
+    doc.add_heading("1. SEO", level=1)
 
-    # H1 Headings
-    doc.add_heading("H1 Headings", level=3)
-    for h1 in report_data['H1 Headings']:
-        doc.add_paragraph(f"- {h1}", style='List Bullet')
+    # 1.1 Improper Meta Title and Description
+    doc.add_heading("1.1 Improper Meta Title and Description", level=2)
+    doc.add_paragraph(f"**Title:** {report_data['Title']}")
+    doc.add_paragraph(f"**Description:** {report_data['Meta Description']}")
+    doc.add_paragraph("Issue: Your site has an improper meta title and description.")
+    doc.add_paragraph("Recommendation: Create unique and descriptive titles and meta descriptions for each page, keeping them within recommended character limits.")
 
-    # Images with Missing Alt Text
-    doc.add_heading("Images", level=3)
-    doc.add_paragraph(f"Total Images: {report_data['Total Images']}")
-    doc.add_paragraph(f"Images without Alt Text: {len(report_data['Images without Alt Text'])}")
-    if report_data['Images without Alt Text']:
+    # 1.2 Missing Image Alt Tags
+    doc.add_heading("1.2 Missing Image Alt Tags", level=2)
+    images_without_alt = report_data['Images without Alt Text']
+    if images_without_alt:
+        doc.add_paragraph(f"Found {len(images_without_alt)} images with missing alt text.")
         doc.add_paragraph("The following images are missing alt text:")
-        for img in report_data['Images without Alt Text']:
+        for img in images_without_alt:
             doc.add_paragraph(f"- {img}", style='List Bullet')
+    else:
+        doc.add_paragraph("✅ All images found have alt text.")
+    doc.add_paragraph("Recommendation: Add descriptive alt attributes to all images for improved accessibility and SEO.")
     
+    # 1.3 Multiple H1 Found
+    doc.add_heading("1.3 Multiple H1 Found", level=2)
+    h1_tags = report_data['H1 Headings']
+    if len(h1_tags) > 1:
+        doc.add_paragraph(f"Found {len(h1_tags)} H1 tags:")
+        for h1 in h1_tags:
+            doc.add_paragraph(f"- {h1}", style='List Bullet')
+        doc.add_paragraph("Issue: Multiple H1 tags can confuse search engines about the page's main topic.")
+        doc.add_paragraph("Recommendation: Ensure each page has only one H1 tag that accurately represents the primary content.")
+    elif len(h1_tags) == 1:
+        doc.add_paragraph(f"✅ Found a single H1 tag: {h1_tags[0]}")
+    else:
+        doc.add_paragraph("❌ No H1 tags found.")
+        doc.add_paragraph("Issue: Missing H1 tags can negatively impact on-page SEO.")
+        doc.add_paragraph("Recommendation: Add a single H1 tag that clearly defines the page's main topic.")
+
+    # --- 2. Competitor Analysis ---
+    doc.add_heading("2. Competitor Analysis", level=1)
+    doc.add_paragraph("This section would include detailed competitor information and analysis.")
+
+    # --- 3. Local SEO ---
+    doc.add_heading("3. Local SEO", level=1)
+    doc.add_paragraph("This section would detail local search engine optimization efforts.")
+
+    # --- 4. UI/UX Suggestions ---
+    doc.add_heading("4. UI/UX Suggestions", level=1)
+    doc.add_paragraph("This section would include recommendations for improving the user interface and user experience.")
+
     return doc
