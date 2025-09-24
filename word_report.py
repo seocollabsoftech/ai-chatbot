@@ -1,250 +1,94 @@
-"""
-word_report.py
-Automates SEO Site Checkup, scrapes the visible audit report, and writes a Word document.
+# word_report.py
 
-Usage:
-    python word_report.py https://example.com
-
-Requirements:
-    pip install selenium python-docx webdriver-manager
-
-Notes:
- - Chrome is used by default via webdriver-manager (auto-downloads chromedriver).
- - The script attempts multiple input selectors to find the site entry box.
- - Run with a visible browser first (headless=False) to confirm selectors; switch to headless if desired.
- - Some detailed checks may require login / paid plan; the script captures the visible report sections.
-"""
-
-import sys
-import time
-from pathlib import Path
-from urllib.parse import urlparse
-
-from selenium import webdriver
-from selenium.common.exceptions import (
-    NoSuchElementException,
-    TimeoutException,
-    ElementClickInterceptedException,
-)
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.chrome.options import Options
-
+import requests
+from bs4 import BeautifulSoup
 from docx import Document
-from docx.shared import Pt
+from docx.shared import Inches
+from io import BytesIO
 
-# ---------- Configuration ----------
-HEADLESS = False  # set True to run without opening the browser window
-IMPLICIT_WAIT = 5
-EXPLICIT_WAIT = 30
-# -----------------------------------
-
-def setup_driver(headless=HEADLESS):
-    chrome_options = Options()
-    if headless:
-        chrome_options.add_argument("--headless=new")
-        chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    # optional: prevent images loading for speed
-    prefs = {"profile.managed_default_content_settings.images": 2}
-    chrome_options.add_experimental_option("prefs", prefs)
-    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()),
-                              options=chrome_options)
-    driver.implicitly_wait(IMPLICIT_WAIT)
-    return driver
-
-def find_site_input(driver):
-    """Try multiple selectors to find the main domain/url input on the homepage."""
-    attempts = [
-        (By.CSS_SELECTOR, 'input[name="url"]'),
-        (By.CSS_SELECTOR, 'input[name="domain"]'),
-        (By.CSS_SELECTOR, 'input[type="text"]'),
-        (By.CSS_SELECTOR, 'input[placeholder*="Enter"]'),
-        (By.CSS_SELECTOR, 'input[aria-label*="domain"]'),
-    ]
-    for by, sel in attempts:
-        try:
-            el = driver.find_element(by, sel)
-            if el.is_displayed():
-                return el
-        except Exception:
-            continue
-    # fallback: try to find a big visible input in forms
+def perform_seo_audit(url):
+    """Fetches and analyzes a website's content for basic SEO elements."""
     try:
-        forms = driver.find_elements(By.TAG_NAME, "form")
-        for f in forms:
-            inputs = f.find_elements(By.TAG_NAME, "input")
-            for i in inputs:
-                if i.is_displayed() and i.get_attribute("type") in ("text", "url"):
-                    return i
-    except Exception:
-        pass
-    return None
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()  # Check for bad HTTP status
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-def click_check_button(driver):
-    """Try to click the button that submits the check. Multiple selectors tried."""
-    btn_selectors = [
-        (By.CSS_SELECTOR, 'button[type="submit"]'),
-        (By.CSS_SELECTOR, 'button[class*="check"]'),
-        (By.XPATH, "//button[contains(., 'Check') or contains(., 'Analyze') or contains(., 'Start')]"),
-        (By.CSS_SELECTOR, 'input[type="submit"]'),
-    ]
-    for by, sel in btn_selectors:
-        try:
-            btn = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((by, sel)))
-            btn.click()
-            return True
-        except Exception:
-            continue
-    return False
+        # Collect SEO data
+        title = soup.find('title')
+        meta_description = soup.find('meta', attrs={'name': 'description'})
+        h1_tags = [h1.get_text().strip() for h1 in soup.find_all('h1')]
+        images_without_alt = [img['src'] for img in soup.find_all('img') if 'alt' not in img or not img['alt'].strip()]
 
-def wait_for_results(driver):
-    """Wait until some common result container appears."""
-    possible = [
-        (By.CSS_SELECTOR, ".result"),          # generic
-        (By.CSS_SELECTOR, ".score"),           # score box
-        (By.CSS_SELECTOR, ".report"),          # report container
-        (By.CSS_SELECTOR, ".analysis"),        # analysis container
-        (By.CSS_SELECTOR, ".checkup-results"), # possible class
-        (By.XPATH, "//*[contains(@class,'seo')]"),
-    ]
-    for by, sel in possible:
-        try:
-            WebDriverWait(driver, EXPLICIT_WAIT).until(
-                EC.presence_of_element_located((by, sel))
-            )
-            # give additional time for dynamic sections to load
-            time.sleep(2)
-            return True
-        except Exception:
-            continue
-    return False
+        report = {
+            "URL": url,
+            "Title": title.string.strip() if title else "❌ Missing",
+            "Meta Description": meta_description['content'].strip() if meta_description and 'content' in meta_description else "❌ Missing",
+            "H1 Headings": h1_tags if h1_tags else ["❌ Missing"],
+            "Images without Alt Text": images_without_alt,
+            "Total Images": len(soup.find_all('img')),
+        }
+        return report
 
-def collect_sections(driver):
-    """
-    Collect visible headings and their text content.
-    Strategy:
-     - find likely section containers (sections, articles, divs with headings)
-     - for each, capture heading (h1-h4) and following text
-    """
-    sections = []
-    # prioritize elements that typically hold reports
-    candidates = driver.find_elements(By.XPATH, "//section | //article | //div[contains(@class,'section') or contains(@class,'issue') or contains(@class,'result') or contains(@class,'checkup')]")
-    seen = set()
-    for c in candidates:
-        try:
-            text = c.text.strip()
-            if not text:
-                continue
-            # dedupe by short hash of first characters
-            key = text[:200]
-            if key in seen:
-                continue
-            seen.add(key)
-            # try extract heading
-            heading = ""
-            for tag in ("h1","h2","h3","h4","strong"):
-                try:
-                    el = c.find_element(By.TAG_NAME, tag)
-                    heading = el.text.strip()
-                    if heading:
-                        break
-                except Exception:
-                    continue
-            # fallback heading from first line
-            if not heading:
-                heading = text.splitlines()[0][:80]
-            sections.append({
-                "heading": heading,
-                "content": text
-            })
-        except Exception:
-            continue
-    # fallback: whole page text as one section
-    if not sections:
-        body_text = driver.find_element(By.TAG_NAME, "body").text
-        sections.append({"heading": "Full page text", "content": body_text.strip()[:20000]})
-    return sections
+    except requests.exceptions.RequestException as e:
+        return {"Error": f"Could not access the website: {e}"}
 
-def write_word_report(target, sections, output_path):
+def create_word_report(report_data):
+    """Generates a Word document from the SEO audit data, matching the provided structure."""
     doc = Document()
-    doc.core_properties.title = f"SEO Audit Report - {target}"
-    doc.core_properties.subject = "Automated SEO Site Checkup export"
-    doc.add_heading(f"SEO Audit Report — {target}", level=1)
-    doc.add_paragraph(f"Source: https://seositecheckup.com/ (automated capture)\n\n")
-    for sec in sections:
-        doc.add_heading(sec["heading"][:120], level=2)
-        # split content into paragraphs by double newlines or single newlines
-        for para in (p for p in sec["content"].splitlines() if p.strip()):
-            p = doc.add_paragraph(para.strip())
-            p.style.font.size = Pt(10)
-    doc.save(output_path)
-    return output_path
+    doc.add_heading(f"Website Audit Report for: {report_data.get('URL', 'N/A')}", level=0)
+    
+    if "Error" in report_data:
+        doc.add_paragraph(f"Audit failed: {report_data['Error']}")
+        return doc
+    
+    # --- 1. SEO Section ---
+    doc.add_heading("1. SEO", level=1)
 
-def normalize_target(t):
-    if not t:
-        raise ValueError("Missing target URL")
-    if not t.startswith("http"):
-        t = "https://" + t
-    return t
+    # 1.1 Improper Meta Title and Description
+    doc.add_heading("1.1 Improper Meta Title and Description", level=2)
+    doc.add_paragraph(f"**Title:** {report_data['Title']}")
+    doc.add_paragraph(f"**Description:** {report_data['Meta Description']}")
+    doc.add_paragraph("Issue: Your site has an improper meta title and description.")
+    doc.add_paragraph("Recommendation: Create unique and descriptive titles and meta descriptions for each page, keeping them within recommended character limits.")
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: python word_report.py <target-domain-or-url>")
-        sys.exit(1)
-    target = normalize_target(sys.argv[1])
-    parsed = urlparse(target)
-    shortname = parsed.netloc or parsed.path.strip("/").split("/")[0]
-    outname = f"{shortname}_seo_audit.docx"
-    outpath = Path.cwd() / outname
+    # 1.2 Missing Image Alt Tags
+    doc.add_heading("1.2 Missing Image Alt Tags", level=2)
+    images_without_alt = report_data['Images without Alt Text']
+    if images_without_alt:
+        doc.add_paragraph(f"Found {len(images_without_alt)} images with missing alt text.")
+        doc.add_paragraph("The following images are missing alt text:")
+        for img in images_without_alt:
+            doc.add_paragraph(f"- {img}", style='List Bullet')
+    else:
+        doc.add_paragraph("✅ All images found have alt text.")
+    doc.add_paragraph("Recommendation: Add descriptive alt attributes to all images for improved accessibility and SEO.")
+    
+    # 1.3 Multiple H1 Found
+    doc.add_heading("1.3 Multiple H1 Found", level=2)
+    h1_tags = report_data['H1 Headings']
+    if len(h1_tags) > 1:
+        doc.add_paragraph(f"Found {len(h1_tags)} H1 tags:")
+        for h1 in h1_tags:
+            doc.add_paragraph(f"- {h1}", style='List Bullet')
+        doc.add_paragraph("Issue: Multiple H1 tags can confuse search engines about the page's main topic.")
+        doc.add_paragraph("Recommendation: Ensure each page has only one H1 tag that accurately represents the primary content.")
+    elif len(h1_tags) == 1:
+        doc.add_paragraph(f"✅ Found a single H1 tag: {h1_tags[0]}")
+    else:
+        doc.add_paragraph("❌ No H1 tags found.")
+        doc.add_paragraph("Issue: Missing H1 tags can negatively impact on-page SEO.")
+        doc.add_paragraph("Recommendation: Add a single H1 tag that clearly defines the page's main topic.")
 
-    driver = setup_driver()
-    try:
-        print("Opening seositecheckup.com ...")
-        driver.get("https://seositecheckup.com/")
-        time.sleep(2)
+    # --- 2. Competitor Analysis ---
+    doc.add_heading("2. Competitor Analysis", level=1)
+    doc.add_paragraph("This section would include detailed competitor information and analysis.")
 
-        # find input and submit
-        input_el = find_site_input(driver)
-        if not input_el:
-            print("Could not find the site input on homepage; attempting to open tools page.")
-            driver.get("https://seositecheckup.com/tools")
-            time.sleep(2)
-            input_el = find_site_input(driver)
-        if not input_el:
-            print("ERROR: Couldn't find a domain input box on the page. Try running the script with HEADLESS=False to inspect manually.")
-            driver.quit()
-            sys.exit(2)
+    # --- 3. Local SEO ---
+    doc.add_heading("3. Local SEO", level=1)
+    doc.add_paragraph("This section would detail local search engine optimization efforts.")
 
-        # clear and enter target
-        input_el.clear()
-        input_el.send_keys(target)
-        time.sleep(0.5)
-        # try submit via button click first
-        if not click_check_button(driver):
-            # fallback: press Enter in the input
-            input_el.send_keys(Keys.ENTER)
+    # --- 4. UI/UX Suggestions ---
+    doc.add_heading("4. UI/UX Suggestions", level=1)
+    doc.add_paragraph("This section would include recommendations for improving the user interface and user experience.")
 
-        print("Submitted target, waiting for results...")
-        if not wait_for_results(driver):
-            print("Warning: could not detect results container automatically. Will try to collect whatever is visible.")
-        else:
-            print("Results appeared — collecting sections ...")
-
-        sections = collect_sections(driver)
-        print(f"Collected {len(sections)} sections. Writing Word file ...")
-        saved = write_word_report(target, sections, str(outpath))
-        print(f"Saved Word report to: {saved}")
-
-    finally:
-        driver.quit()
-
-if __name__ == "__main__":
-    main()
+    return doc
