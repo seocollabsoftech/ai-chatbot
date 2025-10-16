@@ -101,7 +101,7 @@ if not api_key:
 genai.configure(api_key=api_key)
 
 # Initialize the model
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 # Streamlit page config for beautiful layout
 st.set_page_config(
