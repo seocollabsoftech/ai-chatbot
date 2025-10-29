@@ -99,7 +99,7 @@ st.subheader("💬 Gemini AI Chatbot")
 # Sidebar options
 with st.sidebar:
     st.title("⚙️ Chat Settings")
-    model_choice = st.selectbox("Model", ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest"])
+    model_choice = st.selectbox("Model", ["models/gemini-2.5-flash", "models/gemini-2.5-pro"])
     theme = st.selectbox("Theme", ["Light", "Dark"])
     if theme == "Dark":
         st.markdown('<style> .stApp { background-color: #0e1117; color: white; } </style>', unsafe_allow_html=True)
