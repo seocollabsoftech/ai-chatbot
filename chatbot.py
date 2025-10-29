@@ -10,26 +10,27 @@ logging.getLogger('google.api_core').setLevel(logging.ERROR)
 # Load environment variables
 load_dotenv()
 
-# Set up Gemini client
+# Get Gemini API key
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    print("❌ Error: Add your Gemini API key to the .env file!")
+    print("❌ Error: Add your GEMINI_API_KEY to the .env file!")
     exit()
 
 # Configure Gemini client
 genai.configure(api_key=api_key)
 
-# ✅ Use the latest supported model
-# Options: "models/gemini-pro-latest" or "gemini-1.5-flash-latest"
-model = genai.GenerativeModel("models/gemini-pro-latest")
+# ✅ Use the latest supported model (remove 'models/' prefix)
+# You can switch between: "gemini-1.5-flash" or "gemini-1.5-pro"
+model = genai.GenerativeModel("gemini-1.5-flash")
 
-# Start a new chat session with initial instruction
+# Start chat session
 chat = model.start_chat(history=[
     {"role": "user", "parts": [{"text": "You are a helpful AI assistant."}]}
 ])
 
 print("🤖 Gemini AI Chatbot ready! Type 'quit' to exit.\n")
 
+# Main loop
 while True:
     user_input = input("You: ")
     if user_input.lower() in ["quit", "exit"]:
@@ -37,7 +38,7 @@ while True:
         break
 
     try:
-        # Generate response
+        # Generate AI response
         response = chat.send_message(user_input)
         print(f"AI: {response.text}\n")
     except Exception as e:
